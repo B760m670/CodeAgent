@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#15171C">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>CodeAgent</title>
+  <link rel="icon" href="/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="/icon.svg">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/style.css">
+  <script>try { const t = localStorage.getItem('ca.theme'); if (t) document.documentElement.dataset.theme = t; } catch {}</script>
+</head>
+<body>
+  <!-- Login -->
+  <div id="login" class="overlay hidden">
+    <form class="card login-card" id="login-form">
+      <div class="brand big"><span class="mark mark-lg" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 8l4 4-4 4M12 16h7"/></svg></span>CodeAgent</div>
+      <p class="muted">Введите токен доступа. В GitHub Codespaces он открыт в редакторе — файл <code>data/.access_token</code>. При обычном запуске он печатается в консоли сервера (или задаётся переменной <code>ACCESS_TOKEN</code>).</p>
+      <label class="field">Токен доступа<input id="login-token" type="password" autocomplete="current-password" required></label>
+      <button class="btn primary lg" type="submit">Войти</button>
+      <div id="login-error" class="error-text" role="alert"></div>
+    </form>
+  </div>
+
+  <div id="app" class="hidden">
+    <header class="topbar">
+      <button class="icon-btn mobile-only" id="toggle-left" aria-label="Сессии и файлы"><svg class="i"><use href="#i-menu"/></svg></button>
+      <div class="brand"><span class="mark" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 8l4 4-4 4M12 16h7"/></svg></span><span class="brand-name">CodeAgent</span></div>
+      <label class="repo-picker" title="Репозиторий">
+        <span class="sr-only">Репозиторий</span>
+        <select id="ws-select"></select>
+      </label>
+      <button class="icon-btn" id="new-ws-btn" aria-label="Добавить репозиторий" title="Клонировать или создать репозиторий"><svg class="i"><use href="#i-plus"/></svg></button>
+      <span id="branch-badge" class="chip mono desktop-only" title="Текущая ветка"></span>
+      <div class="spacer"></div>
+      <span id="model-badge" class="chip mono muted desktop-only" title="Модель"></span>
+      <button class="theme-switch" id="theme-btn" role="switch" aria-checked="true" aria-label="Тёмная тема" title="Светлая / тёмная тема"><span class="sun"><svg class="i"><use href="#i-sun"/></svg></span><span class="moon"><svg class="i"><use href="#i-moon"/></svg></span></button>
+      <button class="icon-btn desktop-only" id="toggle-right" aria-label="Показать или скрыть панель" title="Панель файлов и git"><svg class="i"><use href="#i-panel"/></svg></button>
+      <button class="icon-btn" id="settings-btn" aria-label="Настройки" title="Настройки"><svg class="i"><use href="#i-gear"/></svg></button>
+      <button class="icon-btn desktop-only" id="logout-btn" aria-label="Выйти" title="Выйти"><svg class="i"><use href="#i-logout"/></svg></button>
+    </header>
+
+    <nav id="stages" class="stages hidden" aria-label="Этапы задачи"></nav>
+
+    <div class="layout">
+      <aside class="left" id="left">
+        <div class="panel-head">
+          <span>Сессии</span>
+          <button class="btn sm primary" id="new-session-btn"><svg class="i sm"><use href="#i-plus"/></svg>Новая</button>
+        </div>
+        <ul id="session-list" class="list"></ul>
+        <div class="panel-head">
+          <span>Файлы</span>
+          <button class="icon-btn sm" id="refresh-tree" aria-label="Обновить дерево файлов"><svg class="i sm"><use href="#i-refresh"/></svg></button>
+        </div>
+        <div id="file-tree" class="tree"></div>
+        <button class="btn ghost mobile-only drawer-logout" id="logout-btn-m"><svg class="i sm"><use href="#i-logout"/></svg>Выйти</button>
+      </aside>
+      <div class="scrim" id="scrim"></div>
+
+      <main class="chat">
+        <div id="messages" class="messages">
+          <div class="empty-state" id="empty-state">
+            <span class="mark mark-xl" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 8l4 4-4 4M12 16h7"/></svg></span>
+            <h1>Что сделать в проекте?</h1>
+            <p class="muted">Агент изучит код, спланирует, внесёт правки, проверит тестами и откроет pull request.</p>
+            <div class="suggestions">
+              <button class="suggest" data-prompt="/init"><b>/init</b><span>Изучить проект и создать AGENTS.md</span></button>
+              <button class="suggest" data-prompt="/review"><b>/review</b><span>Ревью текущих изменений</span></button>
+              <button class="suggest" data-prompt="/test"><b>/test</b><span>Запустить тесты и починить</span></button>
+              <button class="suggest" data-prompt="/explain архитектуру проекта"><b>/explain</b><span>Объяснить, как устроен код</span></button>
+            </div>
+          </div>
+        </div>
+        <div id="todos" class="todos hidden"></div>
+        <form id="composer" class="composer">
+          <div id="cmd-menu" class="cmd-menu hidden" role="listbox"></div>
+          <div class="composer-box">
+            <label class="sr-only" for="input">Сообщение агенту</label>
+            <textarea id="input" rows="1" placeholder="Опишите задачу…  / — команды"></textarea>
+            <div class="composer-bar">
+              <div class="modes" role="radiogroup" aria-label="Режим разрешений" id="modes">
+                <button type="button" role="radio" data-mode="plan" title="Только чтение и план"><span class="full">План</span><span class="short">План</span></button>
+                <button type="button" role="radio" data-mode="ask" title="Подтверждать каждое действие"><span class="full">Спрашивать</span><span class="short">Вопрос</span></button>
+                <button type="button" role="radio" data-mode="acceptEdits" title="Правки файлов без вопросов, команды — с подтверждением"><span class="full">Правки сами</span><span class="short">Правки</span></button>
+                <button type="button" role="radio" data-mode="auto" title="Всё без подтверждений"><span class="full">Автопилот</span><span class="short">Авто</span></button>
+              </div>
+              <div class="spacer"></div>
+              <span id="usage" class="usage mono"></span>
+              <button type="button" class="icon-btn hidden" id="voice-btn" aria-label="Голосовой ввод" title="Голосовой ввод"><svg class="i"><use href="#i-mic"/></svg></button>
+              <button type="button" class="btn danger hidden" id="stop-btn"><svg class="i sm"><use href="#i-stop"/></svg>Стоп</button>
+              <button type="submit" class="send-btn" id="send-btn" aria-label="Отправить"><svg class="i"><use href="#i-send"/></svg></button>
+            </div>
+          </div>
+        </form>
+      </main>
+
+      <aside class="right" id="right">
+        <nav class="tabs" role="tablist">
+          <button data-tab="file" class="active" role="tab">Файл</button>
+          <button data-tab="changes" role="tab">Изменения <span class="count" id="changes-count"></span></button>
+          <button data-tab="git" role="tab">Git</button>
+          <button data-tab="github" role="tab">GitHub</button>
+          <div class="spacer"></div>
+          <button class="icon-btn mobile-only" id="close-right" aria-label="Закрыть панель"><svg class="i"><use href="#i-close"/></svg></button>
+        </nav>
+        <section class="tab-body" data-tab="file">
+          <div class="file-head">
+            <span id="file-path" class="mono muted">Выберите файл в дереве</span>
+            <div class="spacer"></div>
+            <button class="btn sm hidden" id="file-edit-btn">Редактировать</button>
+            <button class="btn sm primary hidden" id="file-save-btn">Сохранить</button>
+          </div>
+          <pre id="file-view" class="code-view"></pre>
+          <textarea id="file-editor" class="code-editor hidden" spellcheck="false" aria-label="Редактор файла"></textarea>
+        </section>
+        <section class="tab-body hidden" data-tab="changes">
+          <div class="file-head">
+            <span class="muted" id="changes-summary">Незакоммиченные изменения</span>
+            <div class="spacer"></div>
+            <button class="icon-btn sm" id="refresh-diff" aria-label="Обновить"><svg class="i sm"><use href="#i-refresh"/></svg></button>
+          </div>
+          <div id="diff-view" class="diff-container"></div>
+          <div class="changes-bar" id="changes-bar">
+            <button class="btn" id="changes-review">Ревью агентом</button>
+            <button class="btn accept" id="changes-accept">Принять всё → коммит</button>
+          </div>
+        </section>
+        <section class="tab-body hidden" data-tab="git">
+          <div class="side-panel" id="git-panel"></div>
+        </section>
+        <section class="tab-body hidden" data-tab="github">
+          <div class="side-panel" id="github-panel"></div>
+        </section>
+      </aside>
+    </div>
+
+    <nav class="bottom-nav mobile-only" id="bottom-nav" aria-label="Разделы">
+      <button data-view="chat" class="active"><svg class="i"><use href="#i-chat"/></svg>Чат</button>
+      <button data-view="files"><svg class="i"><use href="#i-folder"/></svg>Файлы</button>
+      <button data-view="changes"><svg class="i"><use href="#i-diff"/></svg>Изменения<span class="dot hidden" id="changes-dot"></span></button>
+      <button data-view="git"><svg class="i"><use href="#i-branch"/></svg>Git</button>
+      <button data-view="github"><svg class="i"><use href="#i-pr"/></svg>PR</button>
+    </nav>
+  </div>
+
+  <!-- Modal -->
+  <div id="modal" class="overlay hidden">
+    <div class="card modal-card" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+      <div class="modal-head"><h2 id="modal-title"></h2><button class="icon-btn" id="modal-close" aria-label="Закрыть"><svg class="i"><use href="#i-close"/></svg></button></div>
+      <div id="modal-body"></div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast hidden" role="status"></div>
+
+  <!-- Icon sprite: stroke icons, inherit currentColor -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <defs>
+      <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></symbol>
+      <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+      <symbol id="i-close" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></symbol>
+      <symbol id="i-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></symbol>
+      <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></symbol>
+      <symbol id="i-moon" viewBox="0 0 24 24"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></symbol>
+      <symbol id="i-panel" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M14 4v16"/></symbol>
+      <symbol id="i-logout" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></symbol>
+      <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7"/></symbol>
+      <symbol id="i-send" viewBox="0 0 24 24"><path d="M12 19V5M5 12l7-7 7 7"/></symbol>
+      <symbol id="i-stop" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="1.5"/></symbol>
+      <symbol id="i-mic" viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></symbol>
+      <symbol id="i-chat" viewBox="0 0 24 24"><path d="M4 5h16v11H9l-5 4z"/></symbol>
+      <symbol id="i-folder" viewBox="0 0 24 24"><path d="M3 6h7l2 2h9v11H3z"/></symbol>
+      <symbol id="i-file" viewBox="0 0 24 24"><path d="M14 3H6v18h12V7z"/><path d="M14 3v4h4"/></symbol>
+      <symbol id="i-diff" viewBox="0 0 24 24"><path d="M12 4v10M7 9h10M7 19h10"/></symbol>
+      <symbol id="i-branch" viewBox="0 0 24 24"><circle cx="6" cy="5" r="2"/><circle cx="6" cy="19" r="2"/><circle cx="18" cy="8" r="2"/><path d="M6 7v10M18 10a6 6 0 0 1-6 6H8"/></symbol>
+      <symbol id="i-pr" viewBox="0 0 24 24"><circle cx="6" cy="6" r="2"/><circle cx="6" cy="18" r="2"/><circle cx="18" cy="18" r="2"/><path d="M6 8v8M18 16V9a3 3 0 0 0-3-3h-4M13 3l-2 3 2 3"/></symbol>
+      <symbol id="i-edit" viewBox="0 0 24 24"><path d="M4 20h4L19 9l-4-4L4 16z"/></symbol>
+      <symbol id="i-terminal" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 9l3 3-3 3M13 15h4"/></symbol>
+      <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6"/><path d="M20 20l-4.5-4.5"/></symbol>
+      <symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></symbol>
+      <symbol id="i-list" viewBox="0 0 24 24"><path d="M9 6h11M9 12h11M9 18h11M4 6l1 1 2-2M4 12l1 1 2-2M4 18l1 1 2-2"/></symbol>
+      <symbol id="i-agent" viewBox="0 0 24 24"><rect x="4" y="7" width="16" height="12" rx="3"/><path d="M12 3v4M9 13h.01M15 13h.01"/></symbol>
+      <symbol id="i-plug" viewBox="0 0 24 24"><path d="M9 3v5M15 3v5M6 8h12v3a6 6 0 0 1-12 0zM12 17v4"/></symbol>
+      <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12l5 5L20 7"/></symbol>
+      <symbol id="i-github" viewBox="0 0 24 24"><path d="M9 19c-4 1.3-4-2-6-2.5M15 21v-3.5a3 3 0 0 0-.9-2.4c3-.3 6-1.5 6-6.6a5.2 5.2 0 0 0-1.4-3.6 4.8 4.8 0 0 0-.1-3.6s-1.1-.3-3.6 1.4a12.3 12.3 0 0 0-6.5 0C6 1.6 4.9 2 4.9 2a4.8 4.8 0 0 0-.1 3.6A5.2 5.2 0 0 0 3.4 9.2c0 5.1 3 6.3 6 6.6a3 3 0 0 0-.9 2.4V21"/></symbol>
+    </defs>
+  </svg>
+  <script type="module" src="/app.js"></script>
+</body>
+</html>

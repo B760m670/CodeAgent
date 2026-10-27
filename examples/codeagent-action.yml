@@ -1,0 +1,50 @@
+# Run CodeAgent inside GitHub Actions (no server needed) — the free equivalent of
+# claude-code-action / Codex cloud tasks. Copy to .github/workflows/codeagent.yml
+# in the target repository and add the secret LLM_API_KEY.
+# Comment "@codeagent <task>" on an issue and the agent opens a PR.
+name: CodeAgent
+on:
+  issue_comment:
+    types: [created]
+  issues:
+    types: [opened]
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+jobs:
+  agent:
+    if: >-
+      (contains(github.event.comment.body, '@codeagent') || contains(github.event.issue.body, '@codeagent')) &&
+      contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association || github.event.issue.author_association)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false # CodeAgent authenticates git itself with GITHUB_TOKEN
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Fetch CodeAgent
+        run: git clone --depth 1 https://github.com/B760m670/CodeAgent.git /tmp/codeagent
+      - name: Run agent
+        env:
+          LLM_PROVIDER: openrouter
+          LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DATA_DIR: /tmp/codeagent-data
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          ISSUE_TITLE: ${{ github.event.issue.title }}
+          REQUEST: ${{ github.event.comment.body || github.event.issue.body }}
+        run: |
+          git switch -c "codeagent/issue-${ISSUE_NUMBER}-${GITHUB_RUN_ID}"
+          printf 'GitHub issue #%s: %s\n\nRequest:\n%s\n\nImplement it, run tests, commit with git_commit, push with git_push and open a PR with github_create_pr that says "Closes #%s". Finish with a short markdown summary.' \
+            "$ISSUE_NUMBER" "$ISSUE_TITLE" "$REQUEST" "$ISSUE_NUMBER" \
+            | node /tmp/codeagent/server/cli.js --mode auto --cwd "$GITHUB_WORKSPACE" > /tmp/summary.md
+      - name: Report back
+        if: always()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh issue comment "${{ github.event.issue.number }}" --body-file /tmp/summary.md || true
