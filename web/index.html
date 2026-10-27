@@ -21,7 +21,7 @@
   <div id="login" class="overlay hidden">
     <form class="card login-card" id="login-form">
       <div class="brand big"><span class="mark mark-lg" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 8l4 4-4 4M12 16h7"/></svg></span>CodeAgent</div>
-      <p class="muted">Введите токен доступа. Он печатается в консоли сервера при запуске (или задан переменной <code>ACCESS_TOKEN</code>).</p>
+      <p class="muted">Введите токен доступа. В GitHub Codespaces он открыт в редакторе — файл <code>data/.access_token</code>. При обычном запуске он печатается в консоли сервера (или задаётся переменной <code>ACCESS_TOKEN</code>).</p>
       <label class="field">Токен доступа<input id="login-token" type="password" autocomplete="current-password" required></label>
       <button class="btn primary lg" type="submit">Войти</button>
       <div id="login-error" class="error-text" role="alert"></div>

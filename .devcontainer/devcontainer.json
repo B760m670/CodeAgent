@@ -4,10 +4,14 @@
   "features": {
     "ghcr.io/devcontainers/features/python:1": {}
   },
-  "postCreateCommand": "sudo apt-get update && sudo apt-get install -y ripgrep",
-  "postAttachCommand": "npm start",
+  "postCreateCommand": "sudo apt-get update && sudo apt-get install -y ripgrep; mkdir -p data && ([ -s data/.access_token ] || node -e \"process.stdout.write(require('crypto').randomBytes(18).toString('base64url'))\" > data/.access_token)",
+  "postAttachCommand": "curl -fs http://localhost:3000/healthz >/dev/null 2>&1 || npm start",
   "forwardPorts": [3000],
   "portsAttributes": {
-    "3000": { "label": "CodeAgent", "onAutoForward": "openBrowser" }
+    "3000": { "label": "CodeAgent", "onAutoForward": "openBrowser", "protocol": "http" }
+  },
+  "customizations": {
+    "codespaces": { "openFiles": ["data/.access_token"] },
+    "vscode": { "settings": { "workbench.startupEditor": "none" } }
   }
 }

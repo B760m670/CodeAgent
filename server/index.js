@@ -220,7 +220,9 @@ const server = http.createServer(async (req, res) => {
     if (!pathname.startsWith('/api/')) return serveStatic(req, res, pathname);
     if (pathname !== '/api/login' && !authed(req)) throw new HttpError(401, 'Unauthorized');
     // Basic CSRF protection for cookie auth: state-changing requests must come from our own origin.
-    if (req.method !== 'GET' && req.headers.origin && new URL(req.headers.origin).host !== req.headers.host) throw new HttpError(403, 'Cross-origin request rejected');
+    // Behind a forwarding proxy (Codespaces, tunnels) the browser's host arrives in X-Forwarded-Host.
+    const host = req.headers['x-forwarded-host'] || req.headers.host;
+    if (req.method !== 'GET' && req.headers.origin && new URL(req.headers.origin).host !== host) throw new HttpError(403, 'Cross-origin request rejected');
     for (const [method, re, handler] of routes) {
       if (method !== req.method) continue;
       const m = pathname.match(re);
