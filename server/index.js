@@ -20,7 +20,7 @@ const WEB_DIR = path.join(ROOT_DIR, 'web');
 const ACCESS_TOKEN = getAccessToken();
 const COOKIE_VALUE = crypto.createHash('sha256').update('codeagent:' + ACCESS_TOKEN).digest('hex');
 
-const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.svg': 'image/svg+xml', '.png': 'image/png', '.ico': 'image/x-icon', '.json': 'application/json' };
+const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.svg': 'image/svg+xml', '.png': 'image/png', '.ico': 'image/x-icon', '.json': 'application/json', '.webmanifest': 'application/manifest+json' };
 
 class HttpError extends Error { constructor(status, msg) { super(msg); this.status = status; } }
 

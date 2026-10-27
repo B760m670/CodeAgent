@@ -176,3 +176,19 @@ test('slash command /clear and file API', async () => {
   const cmds = await api('GET', '/api/workspaces/demo/commands');
   assert.ok(cmds.some((c) => c.name === 'init'));
 });
+
+test('discard-file rejects one file: restores tracked, deletes new', async () => {
+  const ws = path.join(dataDir, 'workspaces/demo');
+  await api('PUT', '/api/workspaces/demo/file?path=hello.py', { content: 'print("changed")\n' });
+  await api('PUT', '/api/workspaces/demo/file?path=extra/new.txt', { content: 'new\n' });
+  await api('POST', '/api/workspaces/demo/git', { action: 'discard-file', file: 'hello.py' });
+  await api('POST', '/api/workspaces/demo/git', { action: 'discard-file', file: 'extra/new.txt' });
+  assert.equal(fs.readFileSync(path.join(ws, 'hello.py'), 'utf8'), 'print("hi")\n');
+  assert.ok(!fs.existsSync(path.join(ws, 'extra/new.txt')));
+  const res = await fetch(`${BASE}/api/workspaces/demo/git`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${TOKEN}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'discard-file', file: '../../settings.json' }),
+  });
+  assert.equal(res.status, 400);
+});

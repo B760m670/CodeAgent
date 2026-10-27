@@ -111,7 +111,7 @@ export async function gitDiff(ws, file) {
   return diff;
 }
 
-export async function gitAction(ws, { action, branch, message, from }) {
+export async function gitAction(ws, { action, branch, message, from, file }) {
   const cwd = workspacePath(ws);
   switch (action) {
     case 'checkout': return git(['switch', branch], cwd);
@@ -124,6 +124,16 @@ export async function gitAction(ws, { action, branch, message, from }) {
     case 'fetch': return git(['fetch', '--all', '--prune'], cwd, { timeout: 180_000 });
     case 'merge': return git(['merge', '--no-ff', '--no-edit', branch], cwd);
     case 'discard': return git(['checkout', '--', '.'], cwd);
+    case 'discard-file': {
+      // Reject one file's changes: restore it from HEAD, or delete it if it is new.
+      const abs = resolveInside(cwd, file);
+      const rel = path.relative(cwd, abs);
+      const inHead = await git(['cat-file', '-e', `HEAD:${rel}`], cwd).then(() => true, () => false);
+      if (inHead) return git(['checkout', 'HEAD', '--', rel], cwd);
+      await git(['rm', '--cached', '-q', '--ignore-unmatch', '--', rel], cwd);
+      fs.rmSync(abs, { force: true });
+      return `Removed ${rel}`;
+    }
     default: throw new Error(`Unknown git action ${action}`);
   }
 }
