@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>CodeAgent</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%237c5cff'/><text x='16' y='22' font-size='16' text-anchor='middle' fill='white' font-family='monospace'>&gt;_</text></svg>">
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <!-- Login -->
+  <div id="login" class="overlay hidden">
+    <form class="card login-card" id="login-form">
+      <div class="brand big"><span class="logo">&gt;_</span> CodeAgent</div>
+      <p class="muted">Введите токен доступа. Он печатается в консоли сервера при запуске (или задан переменной <code>ACCESS_TOKEN</code>).</p>
+      <input id="login-token" type="password" placeholder="Access token" autocomplete="current-password" required>
+      <button class="btn primary" type="submit">Войти</button>
+      <div id="login-error" class="error-text"></div>
+    </form>
+  </div>
+
+  <div id="app" class="hidden">
+    <header class="topbar">
+      <button class="icon-btn mobile-only" id="toggle-left" title="Меню">☰</button>
+      <div class="brand"><span class="logo">&gt;_</span><span class="brand-name">CodeAgent</span></div>
+      <select id="ws-select" title="Рабочее пространство (репозиторий)"></select>
+      <button class="btn small" id="new-ws-btn" title="Создать / клонировать репозиторий">＋<span class="ws-btn-label"> Репозиторий</span></button>
+      <span id="branch-badge" class="badge" title="Текущая ветка"></span>
+      <div class="spacer"></div>
+      <span id="model-badge" class="badge muted-badge" title="Модель"></span>
+      <button class="icon-btn" id="toggle-right" title="Панель файлов / git">⧉</button>
+      <button class="icon-btn" id="settings-btn" title="Настройки">⚙</button>
+      <button class="icon-btn" id="logout-btn" title="Выйти">⎋</button>
+    </header>
+
+    <div class="layout">
+      <aside class="left" id="left">
+        <div class="panel-head">
+          <span>Сессии</span>
+          <button class="btn small primary" id="new-session-btn">＋ Новая</button>
+        </div>
+        <ul id="session-list" class="list"></ul>
+        <div class="panel-head">
+          <span>Файлы</span>
+          <button class="icon-btn small" id="refresh-tree" title="Обновить">⟳</button>
+        </div>
+        <div id="file-tree" class="tree"></div>
+      </aside>
+
+      <main class="chat">
+        <div id="messages" class="messages">
+          <div class="empty-state" id="empty-state">
+            <div class="logo huge">&gt;_</div>
+            <h2>Бесплатный AI-агент для кода</h2>
+            <p class="muted">Выберите или создайте репозиторий, затем опишите задачу. Агент изучит проект, отредактирует файлы, запустит тесты, создаст ветку и pull request.</p>
+            <div class="hints">
+              <code>/init</code> создать AGENTS.md · <code>/review</code> ревью изменений · <code>/pr</code> открыть PR · <code>/fix-issue 12</code> · <code>/test</code>
+            </div>
+          </div>
+        </div>
+        <div id="todos" class="todos hidden"></div>
+        <form id="composer" class="composer">
+          <div id="cmd-menu" class="cmd-menu hidden"></div>
+          <textarea id="input" rows="1" placeholder="Опишите задачу… ( / — команды, Shift+Enter — новая строка)"></textarea>
+          <div class="composer-bar">
+            <select id="mode-select" title="Режим разрешений">
+              <option value="plan">📋 Plan — только чтение</option>
+              <option value="ask">✋ Ask — подтверждать всё</option>
+              <option value="acceptEdits">✏️ Auto-edit — правки без вопросов</option>
+              <option value="auto">⚡ Full auto — без подтверждений</option>
+            </select>
+            <span id="usage" class="muted small-text"></span>
+            <div class="spacer"></div>
+            <button type="button" class="btn danger hidden" id="stop-btn">■ Стоп</button>
+            <button type="submit" class="btn primary" id="send-btn">Отправить ↵</button>
+          </div>
+        </form>
+      </main>
+
+      <aside class="right" id="right">
+        <nav class="tabs">
+          <button data-tab="file" class="active">Файл</button>
+          <button data-tab="changes">Изменения</button>
+          <button data-tab="git">Git</button>
+          <button data-tab="github">GitHub</button>
+        </nav>
+        <section class="tab-body" data-tab="file">
+          <div class="file-head">
+            <span id="file-path" class="mono muted">Выберите файл в дереве</span>
+            <div class="spacer"></div>
+            <button class="btn small hidden" id="file-edit-btn">Редактировать</button>
+            <button class="btn small primary hidden" id="file-save-btn">Сохранить</button>
+          </div>
+          <pre id="file-view" class="code-view"></pre>
+          <textarea id="file-editor" class="code-editor hidden" spellcheck="false"></textarea>
+        </section>
+        <section class="tab-body hidden" data-tab="changes">
+          <div class="file-head"><span class="muted">Незакоммиченные изменения</span><div class="spacer"></div><button class="btn small" id="refresh-diff">⟳</button></div>
+          <div id="diff-view" class="diff-container"></div>
+        </section>
+        <section class="tab-body hidden" data-tab="git">
+          <div class="git-panel" id="git-panel"></div>
+        </section>
+        <section class="tab-body hidden" data-tab="github">
+          <div class="git-panel" id="github-panel"></div>
+        </section>
+      </aside>
+    </div>
+  </div>
+
+  <!-- Modal -->
+  <div id="modal" class="overlay hidden">
+    <div class="card modal-card">
+      <div class="modal-head"><h3 id="modal-title"></h3><button class="icon-btn" id="modal-close">✕</button></div>
+      <div id="modal-body"></div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast hidden"></div>
+  <script type="module" src="/app.js"></script>
+</body>
+</html>

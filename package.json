@@ -1,0 +1,19 @@
+{
+  "name": "codeagent",
+  "version": "0.1.0",
+  "description": "Free self-hosted coding agent (Claude Code / Codex alternative) with a web UI and GitHub integration",
+  "type": "module",
+  "main": "server/index.js",
+  "bin": {
+    "codeagent": "server/index.js"
+  },
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "node --watch server/index.js",
+    "test": "node --test test/*.test.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "license": "MIT"
+}

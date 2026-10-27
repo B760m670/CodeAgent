@@ -1,0 +1,23 @@
+services:
+  codeagent:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env
+    volumes:
+      - codeagent-data:/data
+
+  # Optional: a free public https link without your own domain (*.trycloudflare.com).
+  # Start with: docker compose --profile tunnel up -d, then: docker compose logs tunnel | grep trycloudflare
+  tunnel:
+    image: cloudflare/cloudflared:latest
+    profiles: ["tunnel"]
+    restart: unless-stopped
+    command: tunnel --no-autoupdate --url http://codeagent:3000
+    depends_on:
+      - codeagent
+
+volumes:
+  codeagent-data:
