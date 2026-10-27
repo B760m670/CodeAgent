@@ -28,7 +28,7 @@ jobs:
         with:
           node-version: 22
       - name: Fetch CodeAgent
-        run: git clone --depth 1 https://github.com/b760m670/codeagent.git /tmp/codeagent
+        run: git clone --depth 1 https://github.com/B760m670/CodeAgent.git /tmp/codeagent
       - name: Run agent
         env:
           LLM_PROVIDER: openrouter

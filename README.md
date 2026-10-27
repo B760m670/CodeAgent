@@ -34,8 +34,8 @@ Cerebras, Mistral) или полностью локально через **Ollam
 Нужен **Node.js 20+** и **git** (желательно `ripgrep`).
 
 ```bash
-git clone https://github.com/b760m670/codeagent.git
-cd codeagent
+git clone https://github.com/B760m670/CodeAgent.git
+cd CodeAgent
 cp .env.example .env      # необязательно: всё можно настроить в веб-интерфейсе
 npm start
 ```
