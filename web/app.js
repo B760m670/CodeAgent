@@ -49,10 +49,16 @@ function notify(title, body) {
 }
 
 /* ---------------- Theme ---------------- */
+function applyTheme(theme) {
+  document.documentElement.dataset.theme = theme;
+  $('meta[name="theme-color"]').content = theme === 'light' ? '#FFFFFF' : '#15171C';
+  const btn = $('#theme-btn');
+  btn.setAttribute('aria-checked', String(theme === 'dark'));
+}
+applyTheme(document.documentElement.dataset.theme || 'dark');
 $('#theme-btn').onclick = () => {
   const next = document.documentElement.dataset.theme === 'light' ? 'dark' : 'light';
-  document.documentElement.dataset.theme = next;
-  $('meta[name="theme-color"]').content = next === 'light' ? '#FFFFFF' : '#15171C';
+  applyTheme(next);
   try { localStorage.setItem('ca.theme', next); } catch { /* private mode */ }
 };
 
